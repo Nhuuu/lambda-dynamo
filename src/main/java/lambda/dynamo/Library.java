@@ -8,8 +8,12 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.datamodeling.*;
+import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import lambda.dynamo.Models.History;
 import lambda.dynamo.Models.Task;
+
+import java.util.HashMap;
+import java.util.List;
 
 public class Library {
   private DynamoDB dynamoDb;
@@ -50,5 +54,33 @@ public class Library {
       t.addHistory(new History(t.getStatus()));
       ddbMapper.save(t);
       return t;
+  }
+
+  public List<Task> getAllTasks(){
+    final AmazonDynamoDB ddb = AmazonDynamoDBClientBuilder.defaultClient();
+    DynamoDBMapper ddbMapper = new DynamoDBMapper(ddb);
+    List<Task> tasks = ddbMapper.scan(Task.class, new DynamoDBScanExpression());
+    return tasks;
+  }
+
+  public List<Task> getUserTasks(Task task){
+    HashMap<String, AttributeValue> eav = new HashMap<>();
+    eav.put(":v1", new AttributeValue().withS(task.getAssignee()));
+    DynamoDBScanExpression scanExpression = new DynamoDBScanExpression()
+        .withFilterExpression("assignee = :v1")
+        .withExpressionAttributeValues(eav);
+    final AmazonDynamoDB ddb = AmazonDynamoDBClientBuilder.defaultClient();
+    DynamoDBMapper ddbMapper = new DynamoDBMapper(ddb);
+    List<Task> tasks = ddbMapper.scan(Task.class, scanExpression);
+
+    return tasks;
+  }
+
+  public Task deleteTask(Task task){
+    final AmazonDynamoDB ddb = AmazonDynamoDBClientBuilder.defaultClient();
+    DynamoDBMapper ddbMapper = new DynamoDBMapper(ddb);
+    Task t = ddbMapper.load(Task.class, task.getId());
+    ddbMapper.delete(t);
+    return t;
   }
 }
