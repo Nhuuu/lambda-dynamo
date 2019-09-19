@@ -4,7 +4,7 @@
 
 Let's use Lambda to handle database changes in real time!
 
-**API Gateway Link:** 
+**API Gateway Link:** https://mb58t93et1.execute-api.us-west-2.amazonaws.com/dev
 
 ## Feature Tasks
 ```
