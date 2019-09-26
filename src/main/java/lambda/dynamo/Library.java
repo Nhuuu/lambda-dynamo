@@ -9,6 +9,11 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.datamodeling.*;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.sns.AmazonSNS;
+import com.amazonaws.services.sns.AmazonSNSClient;
+import com.amazonaws.services.sns.model.PublishRequest;
+import com.amazonaws.services.sns.model.PublishResult;
+
 import lambda.dynamo.Models.History;
 import lambda.dynamo.Models.Task;
 
@@ -19,6 +24,8 @@ public class Library {
   private DynamoDB dynamoDb;
   private String DYNAMODB_TABLE_NAME = "taskmaster";
   private Regions REGION = Regions.US_WEST_2;
+  AmazonSNS sns = AmazonSNSClient.builder().build();
+  String topicArn = "arn:aws:sns:us-west-2:970800526166:TaskComplete";
 
   public Task save(Task task){
     History h = new History("available");
@@ -44,16 +51,26 @@ public class Library {
     final AmazonDynamoDB ddb = AmazonDynamoDBClientBuilder.defaultClient();
     DynamoDBMapper ddbMapper = new DynamoDBMapper(ddb);
     Task t = ddbMapper.load(Task.class, task.getId());
-      if(t.getStatus().equals("available")){
-        t.setStatus("assigned");
-      } else if(t.getStatus().equals("assigned")){
-        t.setStatus("accepted");
-      } else if(t.getStatus().equals("accepted")){
-        t.setStatus("finished");
-      }
-      t.addHistory(new History(t.getStatus()));
-      ddbMapper.save(t);
-      return t;
+    if(t.getStatus().equals("available")){
+      t.setStatus("assigned");
+    } else if(t.getStatus().equals("assigned")){
+      t.setStatus("accepted");
+    } else if(t.getStatus().equals("accepted")){
+      t.setStatus("finished");
+    } else if(t.getStatus().equals("finished")){
+
+      // Publish a message to an Amazon SNS topic.
+      final String msg = "Task Completed!";
+      final PublishRequest publishRequest = new PublishRequest(topicArn, msg);
+      final PublishResult publishResponse = sns.publish(publishRequest);
+
+      // Print the MessageId of the message.
+      System.out.println("MessageId: " + publishResponse.getMessageId());
+
+    }
+    t.addHistory(new History(t.getStatus()));
+    ddbMapper.save(t);
+    return t;
   }
 
   public List<Task> getAllTasks(){
